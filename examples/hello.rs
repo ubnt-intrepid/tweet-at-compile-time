@@ -2,5 +2,5 @@
 #![plugin(tweet_at_compile_time)]
 
 fn main() {
-    tweet!("Test");
+    tweet!("日本語テスト\n🍣食べたい");
 }

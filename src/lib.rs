@@ -18,48 +18,33 @@ use syntax::parse::token;
 use syntax::tokenstream::TokenTree;
 use rustc_plugin::Registry;
 
-use std::io;
-use egg_mode::KeyPair;
+use egg_mode::{KeyPair,Token};
 use egg_mode::tweet::DraftTweet;
-use aurelius::browser;
 use tokio_core::reactor::Core;
 
 
-const CONSUMER_KEY: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/consumer_key"));
-const CONSUMER_SECRET: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/consumer_secret"));
+const CONSUMER_KEY: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/keys/consumer_key"));
+const CONSUMER_SECRET: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/keys/consumer_secret"));
+const ACCESS_TOKEN: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/keys/access_token"));
+const ACCESS_SECRET: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/keys/access_secret"));
 
 
-fn from_console(msg: &str) -> String {
-    println!("{}", msg);
-    let mut line = String::new();
-    let _ = io::stdin().read_line(&mut line);
-    line.trim().to_string()
-}
+fn do_tweet(tweet: &str) -> Result<(), egg_mode::error::Error> {
+    let consumer_key = CONSUMER_KEY.trim();
+    let consumer_secret = CONSUMER_SECRET.trim();
+    let access_token = ACCESS_TOKEN.trim();
+    let access_secret = ACCESS_SECRET.trim();
 
-fn do_tweet(
-    consumer_key: &'static str,
-    consumer_secret: &'static str,
-    tweet: &str,
-) -> Result<(), egg_mode::error::Error> {
     let mut core = Core::new()?;
     let handle = core.handle();
 
     // get access token
     let consumer = KeyPair::new(consumer_key, consumer_secret);
-    let request_token = core.run(egg_mode::request_token(&consumer, "oob", &handle))?;
-    let auth_url = egg_mode::authorize_url(&request_token);
-    let _ = browser::open(&auth_url);
-    let pin = from_console("Put your PIN");
-    if pin.is_empty() {
-        return Ok(());
-    }
-    let (token, _user_id, _screen_name) = core.run(egg_mode::access_token(
+    let access = KeyPair::new(access_token, access_secret);
+    let token = Token::Access {
         consumer,
-        &request_token,
-        pin.as_str(),
-        &handle,
-    ))?;
-
+        access,
+    };
     core.run(DraftTweet::new(tweet).send(&token, &handle))?;
 
     Ok(())
@@ -89,10 +74,8 @@ fn tweet(ctx: &mut ExtCtxt, span: Span, args: &[TokenTree]) -> Box<MacResult> {
     }
 
     // Post tweet
-    let consumer_key = CONSUMER_KEY.trim();
-    let consumer_secret = CONSUMER_SECRET.trim();
-    if let Err(err) = do_tweet(consumer_key, consumer_secret, tweet) {
-        ctx.span_err(span, &format!("Unknown error: {:?}", err));
+    if let Err(err) = do_tweet(tweet) {
+        ctx.span_err(span, &format!("Error during tweet: {:?}", err));
         return DummyResult::expr(span);
     }
 
