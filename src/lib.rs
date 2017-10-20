@@ -1,12 +1,12 @@
+#![warn(unused_extern_crates)]
+
 #![feature(plugin_registrar)]
 #![feature(rustc_private)]
 
-extern crate rustc;
 extern crate rustc_plugin;
 extern crate syntax;
 
 extern crate egg_mode;
-extern crate futures;
 extern crate tokio_core;
 
 use syntax::ext::base::{self, DummyResult, ExtCtxt, MacResult};
@@ -55,7 +55,6 @@ fn tweet(ctx: &mut ExtCtxt, span: Span, args: &[TokenTree]) -> Box<MacResult> {
 
     if let Err(err) = do_tweet(&tweet) {
         ctx.span_err(span, &err.to_string());
-        return DummyResult::expr(span);
     }
 
     DummyResult::any(span)
